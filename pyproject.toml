@@ -1,0 +1,38 @@
+[build-system]
+requires = [
+    "setuptools", 
+    "setuptools_scm[toml]",
+    "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "battery_model_sensitivity_analysis"
+description = "A comprehensive framework for global sensitivity analysis of lithium battery models, supporting multiple modeling approaches and sensitivity methods to identify key parameters and improve model accuracy."
+authors = [
+    {name = "Hua Guangbin", email = "huagb@qq.com"}
+]
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "jupyterlab",
+    "matplotlib",
+    "uv",
+    "typer",
+    "SciencePlots"
+]
+classifiers = ["Private :: Do Not Upload"]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",   # for linting
+    "pytest"  # for testing
+]
+
+[tool.setuptools]
+packages = ["battery_model_sensitivity_analysis"]
+
+[tool.setuptools_scm] # use git tag as the version number
+version_scheme = "post-release"
+local_scheme = "no-local-version"

@@ -20,7 +20,10 @@ dependencies = [
     "matplotlib",
     "uv",
     "typer",
-    "SciencePlots"
+    "SciencePlots",
+    "tqdm[notebook]>=4.67.1",
+    "pybamm>=25.4.2",
+    "salib>=1.5.1",
 ]
 classifiers = ["Private :: Do Not Upload"]
 

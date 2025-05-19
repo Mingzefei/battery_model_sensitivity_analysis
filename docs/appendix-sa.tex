@@ -1,0 +1,178 @@
+\chapter{锂离子电池多物理场模型敏感性分析方法及结果}\label{app:sa-results}
+
+\section{响应曲线差异性量化方法}\label{sec:sa-delta}
+
+为量化响应曲线$Y(t)$与基线曲线$Y_b(t)$之间的差异性，定义三个差异性指标，分别为位置差异$\delta_p$、尺度差异$\delta_s$和形状差异$\delta_r$。
+具体计算方法如下：
+
+（1）位置差异计算：衡量两条曲线在整体上的位置偏移程度，反映了响应变量的整体水平。定义如下：
+\begin{equation}\label{eq:delta-p}
+    \delta_p[Y(t), Y_b(t)] = \frac{1}{N} \sum_{t=1}^{N} Y(t) - \frac{1}{N_b} \sum_{t=1}^{N_b} Y_b(t),
+\end{equation}
+其中，$N$ 和 $N_b$ 分别是第一条和第二条曲线的数据点数。
+
+（2）尺度差异计算：衡量两条曲线在变量幅度上的差异，反映了响应变量的波动水平。定义如下：
+\begin{equation}\label{eq:delta-s}
+    \delta_{s}[Y(t), Y_b(t)] = \left( \max[Y(t)] - \min[Y(t)] \right) - \left( \max[Y_b(t)] - \min[Y_b(t)] \right).
+\end{equation}
+% \begin{equation}
+%     \delta_{s,t}[Y(t), Y_b(t)] = \max(t) - \min(t) - \left( \max(t_b) - \min(t_b) \right),
+% \end{equation}
+% 其中，$\delta_{s,x}$ 表示变量幅度差异，$\delta_{s,t}$ 表示时间跨度差异。
+
+（3）形状差异计算：衡量两条曲线在形状上的差异，反映了响应变量的变化模式。定义为位置和尺度校正后两个曲线的均方根误差（Root Mean Square Error， RMSE）。具体步骤如下：
+\begin{enumerate}[label=Step\arabic*:]
+    \item 位置校正：
+          \begin{equation}
+              Y'(t) = Y(t) - \delta_p\left[Y(t), Y_b(t)\right],
+          \end{equation}
+    \item 尺度校正（包括响应变量取值跨度和时间跨度两个维度的尺度）：
+          \begin{equation}
+              Y''(t) = \frac{Y'(t) - \min\left[Y'(t)\right]}{\max\left[Y'(t)\right] - \min\left[Y'(t)\right]} + \min\left[Y_b(t)\right],
+          \end{equation}
+          \begin{equation}
+              Y'''(t) = Y''\left(\frac{N_b}{N} t\right),
+          \end{equation}
+    \item 形状差异计算：
+          \begin{equation}\label{eq:delta-r}
+              \delta_r\left[Y(t), Y_b(t)\right] = \sqrt{\frac{1}{N_b} \sum_{t=1}^{N_b} \left[Y'''(t) - Y_b(t)\right]^2},
+          \end{equation}
+\end{enumerate}
+其中，$\delta_r$ 表示形状差异。
+
+使用 $\delta_p + \delta_s + \delta_r$ 作为评估 $Y(t)$ 和 $Y_b(t)$ 之间差异性的整体指标，其物理含义为：响应曲线 $Y(t)$ 通过平移、缩放和形状调整等变换操作与基线曲线 $Y_b(t)$ 重合所需的最小调整量。
+% 与直接使用均方误差（RMSE）进行评估相比，该指标的优势在能够分解主要偏差来源，分别衡量曲线在位置、尺度和形状上的具体差异，从而更全面地反映曲线间的差异性。
+
+\section{Sobol敏感性分析算法}\label{sec:sa-sobol-algo}
+
+Sobol 敏感性分析通过方差分解，量化每个参数及其交互项对模型输出的影响。
+其核心指标一阶效应值 $ S1_i $、二阶效应值 $ S2_{ij} $ 和总效应值 $ ST $ 分别通过公式 \eqref{eq:sobol-s1}、\eqref{eq:sobol-s2} 和 \eqref{eq:sobol-st} 计算：
+\begin{equation}\label{eq:sobol-s1}
+    S_i = \frac{\mathrm{Var}[\mathbb{E}(\delta|P_i)]}{\mathrm{Var}(\delta)},
+\end{equation}
+\begin{equation}\label{eq:sobol-s2}
+    S_{ij} = \frac{\mathrm{Var}[\mathbb{E}(\delta|P_i,P_j)] - \mathrm{Var}[\mathbb{E}(\delta|P_i)] - \mathrm{Var}[\mathbb{E}(\delta|P_j)]}{\mathrm{Var}(\delta)},
+\end{equation}
+\begin{equation}\label{eq:sobol-st}
+    S_T = 1 - \frac{\mathrm{Var}[\mathbb{E}(\delta|P_{\sim i})]}{\mathrm{Var}(\delta)}.
+\end{equation}
+其中，$ \mathbb{E}(\delta|P_i) $ 是固定参数 $ P_i $ 时模型输出差异 $\delta$ 的条件期望，$ \mathrm{Var}(\delta) $ 为模型输出差异的总方差；$ P_{\sim i} $ 表示除 $ P_i $ 之外的所有参数。
+
+Sobol 敏感性分析具体算法如 算法 \ref{alg:sobol-sensitivity} 所示。
+
+\begin{algorithm}[htbp]
+\SetAlgoLined
+\KwIn{参数空间 $\Theta$，参数样本数量 $N$，模型 $M$，基线曲线 $Y_b(t)$}
+\KwOut{各参数的影响程度}
+
+\BlankLine
+\textbf{Step 1: 参数采样} \\
+使用 Sobol 序列从参数空间 $\Theta$ 中生成 $N$ 组参数样本 $\{\theta_i\}_{i=1}^N$。
+
+\BlankLine
+\textbf{Step 2: 仿真计算} \\
+\ForEach{$\theta_i \in \{\theta_1, \theta_2, \dots, \theta_N\}$}{
+    运行模型 $M$，计算输出 $Y_i(t)$；
+}
+
+\BlankLine
+\textbf{Step 3: 量化差异} \\
+\ForEach{$Y_i(t)$}{
+    根据公式 \eqref{eq:delta-p} 计算位置差异 $\delta_p$；\\
+    根据公式 \eqref{eq:delta-s} 计算尺度差异 $\delta_s$；\\
+    根据公式 \eqref{eq:delta-r} 计算形状差异 $\delta_r$；\\
+    计算总差异 $\Delta_i = \delta_p + \delta_s + \delta_r$；
+}
+
+\BlankLine
+\textbf{Step 4: 估算方差} \\
+计算总差异 $\{\Delta_i\}$ 的方差 $\text{Var}[\Delta]$；\\
+通过条件期望估算各参数对方差 $\text{Var}[\Delta]$ 的贡献。
+
+\BlankLine
+\textbf{Step 5: 计算效应值} \\
+根据公式 \eqref{eq:sobol-s1}、\eqref{eq:sobol-s2} 和 \eqref{eq:sobol-st}，计算一阶、二阶和总效应值$S1_i$、$S2_{ij}$和 $ST_i$。
+
+\Return{各参数的效应值 $(S1_i, S2_{ij}, ST_i)$}
+\caption{Sobol敏感性分析算法}
+\label{alg:sobol-sensitivity}
+\end{algorithm}
+
+% \newpage
+% \section{几何参数组的敏感性分析结果}
+% 
+% \begin{figure}[!htbp]
+%     \centering
+%     \subfigure[标准充放电工况]{
+%         \includegraphics[width=0.8\linewidth]{geometry_cccv-cc_2048_clean_delta_all(Voltage [V])_STS1}
+%         \label{fig:ge-sa-cc-sts1}
+%     }
+%     \subfigure[高倍率脉冲工况]{
+%         \includegraphics[width=0.8\linewidth]{geometry_cccv-pulse_2048_clean_delta_all(Voltage [V])_STS1.pdf}
+%         \label{fig:ge-sa-cp-sts1}
+%     }
+%     \caption{几何参数组的敏感性分析结果（$S1$与$ST$）}\label{fig:ge-sa-sts1}
+% \end{figure}
+% 
+% \begin{figure}[!htbp]
+%     \centering
+%     \subfigure[标准充放电工况]{
+%         \includegraphics[width=0.45\linewidth]{geometry_cccv-cc_2048_clean_delta_all(Voltage [V])_S2.pdf}
+%         \label{fig:ge-sa-cc-s2}
+%     }
+%     \subfigure[高倍率脉冲工况]{
+%         \includegraphics[width=0.45\linewidth]{geometry_cccv-pulse_2048_clean_delta_all(Voltage [V])_S2.pdf}
+%         \label{fig:ge-sa-cp-s2}
+%     }
+%     \caption{几何参数组的敏感性分析结果($S2$)}\label{fig:ge-sa-s2}
+% \end{figure}
+% 
+\newpage
+\section{电化学参数组的敏感性分析结果}
+
+\begin{figure}[!htbp]
+    \centering
+    \subfigure[标准充放电工况]{
+        \includegraphics[width=0.9\linewidth]{electrochemical_cccv-cc_2048_clean_delta_all(Voltage [V])_STS1.pdf}
+    }
+    \subfigure[高倍率脉冲工况]{
+        \includegraphics[width=0.9\linewidth]{electrochemical_cccv-pulse_2048_clean_delta_all(Voltage [V])_STS1.pdf}
+    }
+    \caption{电化学参数组的敏感性分析结果（$S1$和$ST$）}\label{fig:electrochemical-sa-sts1}
+\end{figure}
+
+\begin{figure}[!htbp]
+    \centering
+    \subfigure[标准充放电工况]{
+        \includegraphics[width=0.45\linewidth]{electrochemical_cccv-cc_2048_clean_delta_all(Voltage [V])_S2.pdf}
+    }
+    \subfigure[高倍率脉冲工况]{
+        \includegraphics[width=0.45\linewidth]{electrochemical_cccv-pulse_2048_clean_delta_all(Voltage [V])_S2.pdf}
+    }
+    \caption{电化学参数组的敏感性分析结果（$S2$）}\label{fig:electrochemical-sa-s2}
+\end{figure}
+
+\newpage
+\section{热学参数组的敏感性分析结果}
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[标准充放电工况下的$S1$与$ST$]{
+        \includegraphics[width=0.45\linewidth]{thermal_cccv-cc_2048_clean_delta_all(Voltage [V])_STS1.pdf}
+    }
+    \subfigure[高倍率脉冲工况下的$S1$与$ST$]{
+        \includegraphics[width=0.45\linewidth]{thermal_cccv-pulse_2048_clean_delta_all(Voltage [V])_STS1.pdf}
+    }
+    \caption{热学参数组的敏感性分析结果（$S1$和$ST$）}\label{fig:thermal-sa-sts1}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[标准充放电工况]{
+        \includegraphics[width=0.45\linewidth]{thermal_cccv-cc_2048_clean_delta_all(Voltage [V])_S2.pdf}
+    }
+    \subfigure[高倍率脉冲工况]{
+        \includegraphics[width=0.45\linewidth]{thermal_cccv-pulse_2048_clean_delta_all(Voltage [V])_S2.pdf}
+    }
+    \caption{热学参数组的敏感性分析结果（$S2$）}\label{fig:thermal-sa-s2}
+\end{figure}
